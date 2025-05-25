@@ -7,6 +7,10 @@ const CANVAS_ID = "mainCanvas";
 const POINT_WIDTH = 8;
 const POINT_COMPARE_DELTA = 0.1;
 const PLAYER_COLORS = ["red", "blue"];
+const PLAYER_FILL_COLORS = [
+    "rgba(255,0,0,0.5)", 
+    "rgba(0,0,255,0.5)"
+];
 
 let GAME_STATE = {};
 
@@ -39,7 +43,7 @@ function generateRandomPoints() {
     let points = [POINT_COUNT];
 
     for (let i = 0; i < POINT_COUNT; i++) {
-        points[i] = [Math.random() * GAME_WIDHT, Math.random() * GAME_HEIGHT]
+        points[i] = [Math.floor(Math.random() * GAME_WIDHT), Math.floor(Math.random() * GAME_HEIGHT)]
     }
 
     return points;
@@ -56,6 +60,17 @@ function draw(ctx, gameState) {
     }
 
     cleanCanvas(ctx);
+
+    if (gameState.triangles) {
+        gameState.triangles.forEach(triangle => {
+            ctx.fillStyle = PLAYER_FILL_COLORS[triangle[3]];
+            const path = new Path2D();
+            path.moveTo(triangle[0][0], triangle[0][1]);
+            path.lineTo(triangle[1][0], triangle[1][1]);
+            path.lineTo(triangle[2][0], triangle[2][1]);
+            ctx.fill(path);
+        })
+    }
 
     if (gameState.lines) {
         gameState.lines.forEach(line => {
@@ -117,8 +132,9 @@ function handleCanvasClick(event) {
             GAME_STATE.lines = []
         }
 
+        const currentPlayer = GAME_STATE.turn % 2;
         // new line = [from, to, player id]
-        const newLine = [GAME_STATE.selectedPoint, selectedPoint, GAME_STATE.turn % 2];
+        const newLine = [GAME_STATE.selectedPoint, selectedPoint, currentPlayer];
         
         // check if the lines is valid
         if (checkLineIntersection(newLine, GAME_STATE.lines)) {
@@ -127,6 +143,18 @@ function handleCanvasClick(event) {
             // line is valid => store it, player's turn is done
             GAME_STATE.lines.push(newLine);
             GAME_STATE.selectedPoint = null;
+
+            // check if the current lines closes a triangle
+            const triangle = checkTriangle(GAME_STATE.lines)
+            if (triangle) {
+                console.log(`Player ${currentPlayer} found triangle: ${triangle}`);
+                if (!GAME_STATE.triangles) {
+                    GAME_STATE.triangles = [];
+                }
+                // new triangle = [A, B, C, player id]
+                GAME_STATE.triangles.push([triangle[0], triangle[1], triangle[2], currentPlayer]);
+            }
+
             turnFinished = true;
         }
     }
@@ -137,6 +165,86 @@ function handleCanvasClick(event) {
     if (turnFinished) {
         GAME_STATE.turn = GAME_STATE.turn + 1;
     }
+}
+
+/**
+ * Check if the last line in given list list of lines closes a new triangle.
+ * @param {Array} lines lines.
+ */
+function checkTriangle(lines) {
+    if (lines.length < 3) {
+        false;
+    }
+
+    const lastLine = lines[lines.length-1];
+
+    // last lines is from point A to point B
+    // if we find the path B->A->X->B, we have a triangle
+    // that means we need to find 2 lines - [A,X] and [X,B]
+    const a = lastLine[0];
+    const b = lastLine[1];
+
+    // convert lines to a map of point => lines that start or end in given point
+    const pointToLines = new Map();
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const p1 = line[0];
+        const p2 = line[1];
+        
+        if (!pointToLines.has(p1)) {
+            pointToLines.set(p1, []);
+        }
+
+        if (!pointToLines.has(p2)) {
+            pointToLines.set(p2, []);
+        }
+
+        pointToLines.get(p1).push(line);
+        pointToLines.get(p2).push(line);
+    }
+    
+
+    let l1 = null;
+    let l2 = null;
+    // iterate over points and try to find X so that lines 1:[A,X] and 2:[X,B] exist
+    for (let [key, value] of pointToLines) {
+        const pointX = key;
+        const lines = value;
+
+        // point X has to be different from A and B
+        if (arePointsSame(pointX, a) || arePointsSame(pointX, b)) {
+            continue;
+        }
+
+        for (const line of lines) {
+            const p1 = line[0];
+            const p2 = line[1];
+            if (arePointsSame(a, p1) || arePointsSame(a, p2)) {
+                l1 = line;
+            }
+
+            if (arePointsSame(b, p1) || arePointsSame(b, p2)) {
+                l2 = line;
+            }
+        }
+    }
+
+    if (l1 != null && l2 != null) {
+        const triangle = new Set();
+        triangle.add(l1[0]);
+        triangle.add(l1[1]);
+        triangle.add(l2[0]);
+        triangle.add(l2[1]);
+        triangle.add(lastLine[0]);
+        triangle.add(lastLine[1]);
+        return Array.from(triangle);
+    } else {
+        return false;
+    }
+}
+
+function pointToString(point) {
+    return point[0]+","+point[1];
 }
 
 function checkLineIntersection(newLine, existingLines) {
@@ -154,10 +262,10 @@ function checkLineIntersection(newLine, existingLines) {
             // if the intersection point is same as one of the points that are defining the line,
             // then it's ok
             if (
-                !arePointsSame(newLine[0], intersectionPoint, POINT_COMPARE_DELTA) &&
-                !arePointsSame(newLine[1], intersectionPoint, POINT_COMPARE_DELTA) &&
-                !arePointsSame(currentLine[0], intersectionPoint, POINT_COMPARE_DELTA) &&
-                !arePointsSame(currentLine[1], intersectionPoint, POINT_COMPARE_DELTA)
+                !arePointsSame(newLine[0], intersectionPoint) &&
+                !arePointsSame(newLine[1], intersectionPoint) &&
+                !arePointsSame(currentLine[0], intersectionPoint) &&
+                !arePointsSame(currentLine[1], intersectionPoint)
             ) {
                 return true;
             }
@@ -167,8 +275,9 @@ function checkLineIntersection(newLine, existingLines) {
     return false;
 }
 
-function arePointsSame(p1, p2, delta) {
-    return Math.abs(p1[0] - p2[0]) < delta && Math.abs(p1[1] - p2[1]) < delta;
+function arePointsSame(p1, p2) {
+    return Math.abs(p1[0] - p2[0]) < POINT_COMPARE_DELTA 
+        && Math.abs(p1[1] - p2[1]) < POINT_COMPARE_DELTA;
 }
 
 // line intercept math by Paul Bourke http://paulbourke.net/geometry/pointlineplane/
