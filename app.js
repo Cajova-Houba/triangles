@@ -4,6 +4,8 @@ const HEIGHT = 510;
 const GAME_WIDHT = 500;
 const GAME_HEIGHT = 500;
 const CANVAS_ID = "mainCanvas";
+const PLAYER_1_SCORE_ID = "player1Score";
+const PLAYER_2_SCORE_ID = "player2Score";
 const POINT_WIDTH = 8;
 const POINT_COMPARE_DELTA = 0.1;
 const PLAYER_COLORS = ["red", "blue"];
@@ -25,6 +27,7 @@ function resetGame() {
     GAME_STATE.turn = 0;
     GAME_STATE.initialized = true;
 
+    displayScore(GAME_STATE);
     draw(ctx, GAME_STATE);
 }
 
@@ -92,6 +95,24 @@ function draw(ctx, gameState) {
     });
 }
 
+function displayScore(gameState) {
+    let p1 = 0;
+    let p2 = 0;
+
+    if (gameState.triangles) {
+        for (let triangle of gameState.triangles) {
+            if (triangle[3] == 0) {
+                p1 = p1 + 1;
+            } else if (triangle[3] == 1) {
+                p2 = p2 + 1;
+            }
+        }
+    }
+
+    document.getElementById(PLAYER_1_SCORE_ID).innerHTML = p1;
+    document.getElementById(PLAYER_2_SCORE_ID).innerHTML = p2;
+}
+
 function handleCanvasClick(event) {
     if (!isGameStateInitialized(GAME_STATE)) {
         console.log("Game state not initialized");
@@ -145,20 +166,23 @@ function handleCanvasClick(event) {
             GAME_STATE.selectedPoint = null;
 
             // check if the current lines closes a triangle
-            const triangle = checkTriangle(GAME_STATE.lines)
-            if (triangle) {
-                console.log(`Player ${currentPlayer} found triangle: ${triangle}`);
-                if (!GAME_STATE.triangles) {
-                    GAME_STATE.triangles = [];
+            const triangles = checkTriangle(GAME_STATE.lines)
+            if (triangles) {
+                for (let triangle of triangles) {
+                    console.log(`Player ${currentPlayer} found triangle: ${triangle}`);
+                    if (!GAME_STATE.triangles) {
+                        GAME_STATE.triangles = [];
+                    }
+                    // new triangle = [A, B, C, player id]
+                    GAME_STATE.triangles.push([triangle[0], triangle[1], triangle[2], currentPlayer]);
                 }
-                // new triangle = [A, B, C, player id]
-                GAME_STATE.triangles.push([triangle[0], triangle[1], triangle[2], currentPlayer]);
             }
 
             turnFinished = true;
         }
     }
 
+    displayScore(GAME_STATE);
     draw(getCanvasContext(), GAME_STATE);
 
     // player's turn finished, increment the turn counters
@@ -202,10 +226,9 @@ function checkTriangle(lines) {
         pointToLines.get(p1).push(line);
         pointToLines.get(p2).push(line);
     }
-    
 
-    let l1 = null;
-    let l2 = null;
+    const triangles = [];
+
     // iterate over points and try to find X so that lines 1:[A,X] and 2:[X,B] exist
     for (let [key, value] of pointToLines) {
         const pointX = key;
@@ -216,30 +239,37 @@ function checkTriangle(lines) {
             continue;
         }
 
+        let lineFromPointX1 = null;
+        let lineFromPointX2 = null;
+
         for (const line of lines) {
             const p1 = line[0];
             const p2 = line[1];
             if (arePointsSame(a, p1) || arePointsSame(a, p2)) {
-                l1 = line;
+                lineFromPointX1 = line;
             }
 
             if (arePointsSame(b, p1) || arePointsSame(b, p2)) {
-                l2 = line;
+                lineFromPointX2 = line;
             }
+        }
+
+        if (lineFromPointX1 != null && lineFromPointX2 != null) {
+            const triangle = new Set();
+            triangle.add(lineFromPointX1[0]);
+            triangle.add(lineFromPointX1[1]);
+            triangle.add(lineFromPointX2[0]);
+            triangle.add(lineFromPointX2[1]);
+            triangle.add(lastLine[0]);
+            triangle.add(lastLine[1]);
+            triangles.push(Array.from(triangle));
         }
     }
 
-    if (l1 != null && l2 != null) {
-        const triangle = new Set();
-        triangle.add(l1[0]);
-        triangle.add(l1[1]);
-        triangle.add(l2[0]);
-        triangle.add(l2[1]);
-        triangle.add(lastLine[0]);
-        triangle.add(lastLine[1]);
-        return Array.from(triangle);
-    } else {
+    if (triangles.length == 0) {
         return false;
+    } else {
+        return triangles;
     }
 }
 
