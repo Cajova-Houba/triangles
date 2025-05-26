@@ -163,9 +163,11 @@ function handleCanvasClick(event) {
         // new line = [from, to, player id]
         const newLine = [GAME_STATE.selectedPoint, newPoint, currentPlayer];
         
-        // check if the lines is valid
+        // check if the line is valid
         if (checkLineIntersection(newLine, GAME_STATE.lines)) {
-            console.log(`Intersection for line ${newLine} found`)
+            console.log(`Intersection for line ${newLine} found`);
+        } else if (lineExists(newLine, GAME_STATE.lines)) {
+            console.log(`Line ${newLine} already exists`);
         } else {
             // line is valid => store it, player's turn is done
             GAME_STATE.lines.push(newLine);
@@ -195,6 +197,26 @@ function handleCanvasClick(event) {
     if (turnFinished) {
         GAME_STATE.turn = GAME_STATE.turn + 1;
     }
+}
+
+function lineExists(newLine, lines) {
+    const newP1 = newLine[0];
+    const newP2 = newLine[1];
+
+    for (let line of lines) {
+        const p1 = line[0];
+        const p2 = line[1];
+
+        if (arePointsSame(p1, newP1) && arePointsSame(p2, newP2)) {
+            return true;
+        }
+
+        if (arePointsSame(p1, newP2) && arePointsSame(p2, newP1)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
