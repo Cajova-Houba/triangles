@@ -56,6 +56,9 @@ function isGameStateInitialized(gameState) {
     return gameState != null && gameState.initialized == true
 }
 
+/**
+ * Draw the current game state into context.
+ */
 function draw(ctx, gameState) {
     if (!isGameStateInitialized(gameState)) {
         console.log("Game state not initialized");
@@ -113,6 +116,9 @@ function displayScore(gameState) {
     document.getElementById(PLAYER_2_SCORE_ID).innerHTML = p2;
 }
 
+/**
+ * Defacto the game loop.
+ */
 function handleCanvasClick(event) {
     if (!isGameStateInitialized(GAME_STATE)) {
         console.log("Game state not initialized");
@@ -122,7 +128,7 @@ function handleCanvasClick(event) {
     const x = event.offsetX;
     const y = event.offsetY;
 
-    let selectedPoint = null;
+    let newPoint = null;
     for (let i = 0; i < POINT_COUNT; i++) {
         const point = GAME_STATE.points[i];
         const pointMinX = point[0] - (POINT_WIDTH/2);
@@ -131,22 +137,22 @@ function handleCanvasClick(event) {
         const pointMaxY = point[1] + (POINT_WIDTH/2);
 
         if (pointMinX <= x && pointMaxX >= x && pointMinY <= y && pointMaxY >= y) {
-            selectedPoint = point;
+            newPoint = point;
             break;
         }
     }
 
-    if (selectedPoint == null) {
+    if (newPoint == null) {
         return;
     }
 
-    console.log(`Selected point: ${selectedPoint}`);
+    console.log(`Selected point: ${newPoint}`);
 
     let turnFinished = false;
 
     if (!GAME_STATE.selectedPoint) {
         // first points selected
-        GAME_STATE.selectedPoint = selectedPoint;
+        GAME_STATE.selectedPoint = newPoint;
     } else {
         // second points selected
         if (!GAME_STATE.lines) {
@@ -155,7 +161,7 @@ function handleCanvasClick(event) {
 
         const currentPlayer = GAME_STATE.turn % 2;
         // new line = [from, to, player id]
-        const newLine = [GAME_STATE.selectedPoint, selectedPoint, currentPlayer];
+        const newLine = [GAME_STATE.selectedPoint, newPoint, currentPlayer];
         
         // check if the lines is valid
         if (checkLineIntersection(newLine, GAME_STATE.lines)) {
@@ -203,8 +209,8 @@ function checkTriangle(lines) {
     const lastLine = lines[lines.length-1];
 
     // last lines is from point A to point B
-    // if we find the path B->A->X->B, we have a triangle
-    // that means we need to find 2 lines - [A,X] and [X,B]
+    // if we find the path B->A->C->B, we have a triangle
+    // that means we need to find 2 lines - [A,C] and [C,B]
     const a = lastLine[0];
     const b = lastLine[1];
 
@@ -227,7 +233,9 @@ function checkTriangle(lines) {
         pointToLines.get(p2).push(line);
     }
 
-    const triangles = [];
+    // All possible point Cs that form a triangle with the
+    // lastLine
+    const pointCs = new Set();
 
     // iterate over points and try to find X so that lines 1:[A,X] and 2:[X,B] exist
     for (let [key, value] of pointToLines) {
@@ -255,22 +263,90 @@ function checkTriangle(lines) {
         }
 
         if (lineFromPointX1 != null && lineFromPointX2 != null) {
-            const triangle = new Set();
-            triangle.add(lineFromPointX1[0]);
-            triangle.add(lineFromPointX1[1]);
-            triangle.add(lineFromPointX2[0]);
-            triangle.add(lineFromPointX2[1]);
-            triangle.add(lastLine[0]);
-            triangle.add(lastLine[1]);
-            triangles.push(Array.from(triangle));
+            pointCs.add(pointX);
         }
     }
 
-    if (triangles.length == 0) {
+    // no points to form triangles with last line found
+    // return false
+    if (pointCs.length == 0) {
         return false;
-    } else {
-        return triangles;
     }
+
+    console.log(pointCs);
+
+    const triangles = [];
+    // pointC is valid only if no other point (except vertices)
+    // lies in the triangle
+    const pointCsArray = Array.from(pointCs);
+    for (let pointC of pointCsArray) {
+        const triangle = [];
+        triangle.push(lastLine[0]);
+        triangle.push(lastLine[1]);
+        triangle.push(pointC);
+        let otherPointsInTriangle = false;
+
+        // iterate through all of the game points and
+        // make sure none of them lies in the triangle
+        for (let otherPointC of GAME_STATE.points) {
+            // filter out vertices
+            if (isPointVertice(triangle, otherPointC)) {
+                continue;
+            }
+
+            // at least one otherPointC lies in the triangle 
+            // => triangle is not valid
+            if (isPointInTriangle(triangle, otherPointC)) {
+                otherPointsInTriangle = true;
+                break;
+            }
+        }
+
+
+        if (!otherPointsInTriangle) {
+            triangles.push(triangle);
+        }
+    }
+
+    return triangles;
+}
+
+function isPointVertice(triangle, point) {
+    for (let vertice of triangle) {
+        if (arePointsSame(vertice, point)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function isPointInTriangle(triangle, otherPointC) {
+    // use barycentric coordinate system to determine
+    // whther the points lines in the triangle
+    // https://totologic.blogspot.com/2014/01/accurate-point-in-triangle-test.html
+    const x1 = triangle[0][0],
+          y1 = triangle[0][1],
+          x2 = triangle[1][0],
+          y2 = triangle[1][1],
+          x3 = triangle[2][0],
+          y3 = triangle[2][1]
+    ;
+    
+    const x = otherPointC[0],
+          y = otherPointC[1]
+    ;
+    
+    // some fancy magic numbers
+    const a = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3));
+    const b = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3));
+    const c = 1 - a - b;
+
+    // p lies in T if and only if 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1
+    // pretty cool property, if you ask me
+    return a >= 0 && a <= 1 
+        && b >= 0 && b <= 1 
+        && c >= 0 && c <= 1
+    ;
 }
 
 function pointToString(point) {
