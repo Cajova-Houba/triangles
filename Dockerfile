@@ -7,7 +7,7 @@ WORKDIR /home/static
 
 # Copy the static website
 COPY code/app.js .
-COPY index.html .
+COPY code/index.html .
 
 # Run BusyBox httpd
 CMD ["busybox", "httpd", "-f", "-v", "-p", "3000"]
