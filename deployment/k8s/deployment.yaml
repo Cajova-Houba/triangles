@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-triangles
+  labels:
+    app: game-triangles
+
+spec:
+  selector:
+    matchLabels:
+      app: game-triangles
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100
+  template:
+    metadata:
+      labels:
+        app: game-triangles
+    spec:
+      imagePullSecrets:
+        - name: docker-pull-secret
+      containers:
+        - name: game-triangles
+          image: docker.io/cajovahouba/game-triangles:19.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
