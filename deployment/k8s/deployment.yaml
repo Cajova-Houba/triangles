@@ -23,7 +23,7 @@ spec:
         - name: docker-pull-secret
       containers:
         - name: game-triangles
-          image: docker.io/cajovahouba/game-triangles:1.0
+          image: docker.io/cajovahouba/game-triangles:2.0
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
