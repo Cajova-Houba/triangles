@@ -1,4 +1,4 @@
-const POINT_COUNT = 12;
+const POINT_COUNT = 30;
 const WIDTH = 510;
 const HEIGHT = 510;
 const GAME_WIDTH = 500;
