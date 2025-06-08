@@ -1,8 +1,13 @@
 const POINT_COUNT = 12;
 const WIDTH = 510;
 const HEIGHT = 510;
-const GAME_WIDHT = 500;
+const GAME_WIDTH = 500;
 const GAME_HEIGHT = 500;
+const GRID_GENERATOR_STEPS = 50;
+const GRID_GENERATOR_ZERO_POINT = [5,5];
+const GRID_GENERATOR_POINTS_X = 6;
+const GRID_GENERATOR_POINTS_Y = 5;
+const GRID_GENERATOR_ANIMATION_INTERVAL = 50;
 const CANVAS_ID = "mainCanvas";
 const PLAYER_1_SCORE_ID = "player1Score";
 const PLAYER_2_SCORE_ID = "player2Score";
@@ -16,13 +21,35 @@ const PLAYER_FILL_COLORS = [
 
 let GAME_STATE = {};
 
-function resetGame() {
+function handleStartNewGame() {
+    let points = generateRandomPoints();
+    resetGame(points);
+}
+
+function handleStartNewGameGridPoints() {
+    let points = [];
+    initGridGenerator(getCanvasContext(), GAME_WIDTH, GAME_HEIGHT, GRID_GENERATOR_ZERO_POINT, GRID_GENERATOR_STEPS, points);
+    startGridGenerator(GRID_GENERATOR_POINTS_X, GRID_GENERATOR_POINTS_Y);
+    resetGame(points);
+    setTimeout(gridGeneratorStep, GRID_GENERATOR_ANIMATION_INTERVAL);
+}
+
+function gridGeneratorStep() {
+    const shiftedPoints = shiftPointsStep();
+    GAME_STATE.points = shiftedPoints;
+    draw(getCanvasContext(), GAME_STATE);
+
+    if (hasNextStep()) {
+        setTimeout(gridGeneratorStep, GRID_GENERATOR_ANIMATION_INTERVAL);
+    }
+}
+
+function resetGame(points) {
     const canvas = document.getElementById(CANVAS_ID);
     canvas.addEventListener("click", handleCanvasClick, false);
     const ctx = canvas.getContext("2d");
 
     GAME_STATE = {};
-    points = generateRandomPoints();
     GAME_STATE.points = points;
     GAME_STATE.turn = 0;
     GAME_STATE.initialized = true;
@@ -46,7 +73,7 @@ function generateRandomPoints() {
     let points = [POINT_COUNT];
 
     for (let i = 0; i < POINT_COUNT; i++) {
-        points[i] = [Math.floor(Math.random() * GAME_WIDHT), Math.floor(Math.random() * GAME_HEIGHT)]
+        points[i] = [Math.floor(Math.random() * GAME_WIDTH), Math.floor(Math.random() * GAME_HEIGHT)]
     }
 
     return points;
@@ -138,7 +165,7 @@ function handleCanvasClick(event) {
     const y = event.offsetY;
 
     let newPoint = null;
-    for (let i = 0; i < POINT_COUNT; i++) {
+    for (let i = 0; i < GAME_STATE.points.length; i++) {
         const point = GAME_STATE.points[i];
         const pointMinX = point[0] - (POINT_WIDTH/2);
         const pointMinY = point[1] - (POINT_WIDTH/2);

@@ -5,7 +5,8 @@
     </head>
     <body>
         <h1>Triangles</h1>
-        <button onclick="resetGame()">Generate points</button>
+        <button onclick="handleStartNewGame()">Generate points</button>
+        <button onclick="handleStartNewGameGridPoints()">Generate grid points (animation)</button>
         <canvas id="mainCanvas" height="510" width="510"></canvas>
 
         <table>
@@ -19,6 +20,7 @@
             </tr>
         </table>
 
+        <script src="gridGenerator.js"></script>
         <script src="app.js"></script>
     </body>
 </html>
