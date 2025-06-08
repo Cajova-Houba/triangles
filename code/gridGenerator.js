@@ -36,25 +36,28 @@ function startGridGenerator(pointCountX, pointCountY) {
     GENERATOR.distanceX = GENERATOR.gridWidth / pointCountX;
     GENERATOR.distanceY = GENERATOR.gridHeight / pointCountY;
 
+    const halfDistX = GENERATOR.distanceX / 2;
+    const halfDistY = GENERATOR.distanceY / 2;
+
     const minX = GENERATOR.gridZeroPoint[0];
     const minY = GENERATOR.gridZeroPoint[1];
     const maxX = minX + GENERATOR.gridWidth;
     const maxY = minY + GENERATOR.gridHeight;
 
-    for (let x = minX; x < maxX; x = x + GENERATOR.distanceX) {
-        for (let y = minY; y < maxY; y = y + GENERATOR.distanceY) {
+    for (let x = minX+halfDistX; x < maxX; x = x + GENERATOR.distanceX) {
+        for (let y = minY+halfDistY; y < maxY; y = y + GENERATOR.distanceY) {
             const point = [x,y];
 
             // get 2 intervals
             // 1: boundaries of shift on X axis
             // 2: boundaries fo shift on Y axis
             const xBoundary = [
-                Math.max(minX, x - GENERATOR.distanceX / 2),
-                Math.min(maxX, x + GENERATOR.distanceX / 2)
+                Math.max(minX, x - halfDistX),
+                Math.min(maxX, x + halfDistX)
             ];
             const yBoundary = [
-                Math.max(minY, y - GENERATOR.distanceY / 2),
-                Math.min(maxY, y + GENERATOR.distanceY / 2)
+                Math.max(minY, y - halfDistY),
+                Math.min(maxY, y + halfDistY)
             ];
 
             // genreate random shift on X and Y axis
