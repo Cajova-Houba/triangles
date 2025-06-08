@@ -7,6 +7,7 @@ WORKDIR /home/static
 
 # Copy the static website
 COPY code/app.js .
+COPY code/gridGenerator.js .
 COPY code/index.html .
 
 # Run BusyBox httpd
