@@ -1,4 +1,4 @@
-const POINT_COUNT = 30;
+const POINT_COUNT = 12;
 const WIDTH = 510;
 const HEIGHT = 510;
 const GAME_WIDHT = 500;
@@ -54,6 +54,10 @@ function generateRandomPoints() {
 
 function isGameStateInitialized(gameState) {
     return gameState != null && gameState.initialized == true
+}
+
+function isGameOver(gameState) {
+    return gameState.gameOver != null && gameState.gameOver == true;
 }
 
 /**
@@ -125,6 +129,11 @@ function handleCanvasClick(event) {
         return;
     }
 
+    if (isGameOver(GAME_STATE)) {
+        console.log("Game has already ended");
+        return;
+    }
+
     const x = event.offsetX;
     const y = event.offsetY;
 
@@ -151,10 +160,19 @@ function handleCanvasClick(event) {
     let turnFinished = false;
 
     if (!GAME_STATE.selectedPoint) {
-        // first points selected
+        
+        // first point selected
         GAME_STATE.selectedPoint = newPoint;
+
+    } else if (arePointsSame(GAME_STATE.selectedPoint, newPoint)) {
+        
+        // the second selected point is the same as the first one => deselect
+        console.log(`Deselecting ${newPoint}`);
+        GAME_STATE.selectedPoint = null;
+
     } else {
-        // second points selected
+        
+        // second point selected
         if (!GAME_STATE.lines) {
             GAME_STATE.lines = []
         }
@@ -197,6 +215,50 @@ function handleCanvasClick(event) {
     if (turnFinished) {
         GAME_STATE.turn = GAME_STATE.turn + 1;
     }
+
+    if (!anyLinesPossible(GAME_STATE)) {
+        console.log(`Game over`);
+        GAME_STATE.gameOver = true;
+    }
+}
+
+/**
+ * Checks if it's possible to create any new lines.
+ * If not, the game ends.
+ */
+function anyLinesPossible(gameState) {
+    if (!gameState.lines || gameState.lines.length == 0) {
+        return true;
+    }
+
+    // naive algorithm:
+    // 1. iterate over all points
+    // 2. for each point check whether it's possible to create a
+    // new line to any other (DIFFERENT!!) point
+    // 3. if at least 1 pair of points is found so that a new line
+    // can be created, return true, otherwise return false
+    // = simple nested loop
+
+    for (let i = 0; i < gameState.points.length; i++) {
+        for (let j = (i+1); j < gameState.points.length; j++) {
+            const firstPoint = gameState.points[i];
+            const secondPoint = gameState.points[j];
+            const line = [firstPoint, secondPoint];
+
+            // check if the line is even valid
+            if (checkLineIntersection(line, gameState.lines)) {
+                continue;
+            }
+
+            // check if the line already exists
+            if (!lineExists(line, gameState.lines)) {
+                // new valid line does not exist yet => return true
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function lineExists(newLine, lines) {
